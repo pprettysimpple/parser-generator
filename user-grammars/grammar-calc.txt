@@ -1,0 +1,96 @@
+@grammar calc;
+
+@header $
+#include <iostream><br>
+#include <vector><br>
+#include <stdexcept><br>
+$
+
+@terms
+    LBR: "\\(";
+    RBR: "\\)";
+    PLUS: "\\+";
+    MINUS: "-";
+    MUL: "\\*";
+    DIV: "/";
+    DIGIT: "[0-9]+";
+    RUN_FACT: "!";
+    DOT_COMMA: ";";
+    EPS: "EPS";
+
+@start e;
+
+@rules
+    e returns [int x] :
+        t         $ int left = t0_x; $
+        e_[left]  $ res_x = e_1_x; $;
+    e_[int arg] returns [int x] :
+        PLUS
+            t $ int val = t1_x; $
+            plus_op[arg, val] $ int cur = plus_op2_x; $ e_[cur] $ res_x = e_3_x; $
+        | MINUS t $ int val = t1_x; $
+            minus_op[arg, val] $ int cur = minus_op2_x; $
+            e_[cur] $ res_x = e_3_x; $
+        | EPS $ res_x = arg; $;
+    t returns [int x] :
+        w $ int left = w0_x; $
+        t_[left] $ res_x = t_1_x; $;
+    t_[int arg] returns [int x] :
+        MUL w $ int val = w1_x; $
+            mul_op[arg, val] $ int cur = mul_op2_x; $
+            t_[cur] $ res_x = t_3_x; $
+        | DIV w $ int val = w1_x; $
+            div_op[arg, val] $ int cur = div_op2_x; $
+            t_[cur] $ res_x = t_3_x; $
+        | EPS $ res_x = arg; $;
+
+    w returns [int x] :
+        fact w_ comb_op[fact0_x, w_1_x] $ res_x = comb_op2_x; $;
+    w_ returns[int x] :
+        DOT_COMMA fact w_ comb_op[fact1_x, w_2_x] $ res_x = comb_op3_x; $
+        | EPS $ res_x = 1; $;
+
+    fact returns[int x] :
+        f $ int val = f0_x; $
+        fact_[val] $ res_x = fact_1_x; $;
+
+    fact_[int arg] returns [int x]:
+        RUN_FACT fact_op[arg] $ int val = fact_op1_x; $
+            fact_[val] $ res_x = fact_2_x; $
+        |
+        EPS $ res_x = arg; $;
+
+
+    f returns [int x]:
+    LBR e RBR $ res_x = e1_x; $
+    | DIGIT $ res_x = std::atoi(lex.get_value().c_str()); $;
+
+    fact_op[int arg] returns[int x] :
+    EPS $
+        int result_ = 1;<br>
+        for (int i_ = 2; i_ <= arg; i_++) {<br>
+            result_ *= i_;<br>
+        }<br>
+        res_x = result_;<br>
+    $;
+
+    comb_op[int n, int k] returns[int x]:
+        fact_op[n] fact_op[k] $ int diff = n - k; $
+        fact_op[diff] $
+        if (n == 0) {<br>
+            res_x = 0;<br>
+        } else {<br>
+            res_x = fact_op0_x / (fact_op1_x * fact_op2_x);<br>
+        }<br>
+    $;
+
+    plus_op[int a, int b] returns[int x]: EPS $ res_x = a + b; $;
+    minus_op[int a, int b] returns[int x]: EPS $ res_x = a - b; $;
+    mul_op[int a, int b] returns[int x]: EPS $ res_x = a * b; $;
+    div_op[int a, int b] returns[int x]: EPS $
+        if (b != 0) {<br>
+            res_x = a / b;<br>
+        } else {<br>
+            throw std::logic_error("Divide by zero");<br>
+        }<br>
+    $;

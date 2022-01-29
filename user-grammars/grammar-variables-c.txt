@@ -1,0 +1,102 @@
+@grammar variables_c;
+
+@header $
+#include <iostream><br>
+#include <vector><br>
+#include <stdexcept><br>
+#include <memory><br>
+#include <utility><br>
+#include <utility><br>
+<br>
+struct node_t {<br>
+    node_t() : pimpl(std::make_shared<impl>()) {}<br>
+    node_t(std::string name) : pimpl(std::make_shared<impl>(std::move(name))) {}<br>
+<br>
+    void add_child(node_t rhs) {<br>
+        return pimpl->add_child(std::move(rhs));<br>
+    }<br>
+
+    std::vector<node_t> get_children() const noexcept {<br>
+        return pimpl->get_children();<br>
+    }<br>
+
+    std::string get_name() const noexcept {<br>
+        return pimpl->get_name();<br>
+    }<br>
+
+    size_t get_id() const noexcept {<br>
+        return reinterpret_cast<size_t>(pimpl.get());<br>
+    }<br>
+
+    void set_name(std::string new_name) {<br>
+        return pimpl->set_name(std::move(new_name));<br>
+    }<br>
+<br>
+private:<br>
+    struct impl {<br>
+        impl() {}
+        impl(std::string name): name(std::move(name)) {}
+
+        void add_child(node_t rhs) {<br>
+            children.push_back(std::move(rhs));<br>
+        }<br>
+
+        std::vector<node_t> get_children() const noexcept {<br>
+            return children;<br>
+        }<br>
+
+        std::string get_name() const noexcept {<br>
+            return name;<br>
+        }<br>
+
+        void set_name(std::string new_name) {<br>
+            name = std::move(new_name);<br>
+        }<br>
+<br>
+        std::vector<node_t> children;<br>
+        std::string name;<br>
+    };<br>
+    std::shared_ptr<impl> pimpl;<br>
+};<br>
+<br>
+$
+
+@terms
+    STAR: "\\*";
+    LBR: "\\[";
+    RBR: "\\]";
+    COMMA: ",";
+    DOT_COMMA: ";";
+    ID: "[a-zA-Z][a-zA-Z0-9]*";
+    NUM: "[0-9]+";
+    EPS: "EPS";
+
+@start declare;
+
+@rules
+    declare returns[node_t node]:
+        ID $res_node.set_name("declare"); res_node.add_child(node_t(lex.get_value() + " "));$
+        names  $res_node.add_child(names1_node);$
+        DOT_COMMA $res_node.add_child(node_t(";"));$;
+
+    names returns[node_t node]:
+        name $res_node.set_name("names"); res_node.add_child(name0_node);$
+        names_continue $res_node.add_child(names_continue1_node);$;
+
+    names_continue returns[node_t node]:
+        COMMA $res_node.set_name("names_continue"); res_node.add_child(node_t(lex.get_value()));$
+            name $res_node.add_child(name1_node);$
+            names_continue $res_node.add_child(names_continue2_node);$
+        | EPS;
+
+    name returns[node_t node]:
+        STAR $res_node.set_name("name"); res_node.add_child(node_t(lex.get_value()));$
+            name $res_node.add_child(name1_node);$
+        | ID $res_node.set_name("name"); res_node.add_child(node_t(lex.get_value()));$
+            maybe_brackets $res_node.add_child(maybe_brackets1_node);$;
+
+    maybe_brackets returns[node_t node]:
+            LBR $res_node.set_name("maybe_brackets"); res_node.add_child(node_t(lex.get_value()));$
+                NUM $res_node.add_child(node_t(lex.get_value()));$
+                RBR $res_node.add_child(node_t(lex.get_value()));$
+            | EPS;
